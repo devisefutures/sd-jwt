@@ -32,6 +32,11 @@ class SDJWTIssuer(SDJWTCommon):
         self,
         user_claims: Dict,
         issuer_key,
+        key_label=None,
+        user_pin=None,
+        lib_path=None,
+        slot_id=None,
+        hsm=False,
         holder_key=None,
         sign_alg=None,
         add_decoy_claims: bool = False,
@@ -44,6 +49,12 @@ class SDJWTIssuer(SDJWTCommon):
         self._holder_key = holder_key
         self._sign_alg = sign_alg or DEFAULT_SIGNING_ALG
         self._add_decoy_claims = add_decoy_claims
+
+        self.key_label=key_label
+        self.user_pin=user_pin
+        self.lib_path=lib_path
+        self.slot_id=slot_id
+        self.hsm=hsm
 
         self.ii_disclosures = []
         self.decoy_digests = []
@@ -171,11 +182,23 @@ class SDJWTIssuer(SDJWTCommon):
         if self.SD_JWT_HEADER:
             _protected_headers["typ"] = self.SD_JWT_HEADER
 
-        self.sd_jwt.add_signature(
-            self._issuer_key,
-            alg=self._sign_alg,
-            protected=dumps(_protected_headers),
-        )
+        print("\nAlg: ", self._sign_alg)
+
+        if self.hsm:
+            self.sd_jwt.add_signature_hsm(
+                key_label=self.key_label,
+                user_pin=self.user_pin,
+                lib_path=self.lib_path,
+                slot_id=self.slot_id,
+                alg=self._sign_alg,
+                protected=dumps(_protected_headers),
+            )
+        else:
+            self.sd_jwt.add_signature(
+                self._issuer_key,
+                alg=self._sign_alg,
+                protected=dumps(_protected_headers),
+            )
 
         self.serialized_sd_jwt = self.sd_jwt.serialize(
             compact=(self._serialization_format == "compact")
